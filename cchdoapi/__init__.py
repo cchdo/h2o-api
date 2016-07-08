@@ -1,15 +1,17 @@
 from flask import Flask
+from flask import g
 import click
 
 from flask_sqlalchemy import SQLAlchemy
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://localhost/cchdoapi"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SQLALCHEMY_ECHO"] = True
 app.config["SECRET_KEY"] = "SOME SECRET"
 db = SQLAlchemy(app)
 
 from flask import jsonify, request
-from werkzeug.exceptions import Unauthorized
+from werkzeug.exceptions import Unauthorized, BadRequest
 
 import jwt
 
@@ -18,7 +20,7 @@ from .models import User
 
 # Temporary workaround until #941 is fixed
 # https://github.com/pallets/flask/issues/941
-exceptions = (Unauthorized, )
+exceptions = (Unauthorized, BadRequest)
 
 def handle_http_exception(error):
 	return jsonify({
@@ -30,24 +32,49 @@ def handle_http_exception(error):
 for exception in exceptions:
     app.errorhandler(exception)(handle_http_exception)
 
-@app.route("/test_jwt")
-def test_jwt():
+@app.before_request
+def get_user():
     auth = request.headers.get("Authorization")
     if auth and auth.startswith("Barrer "):
         token = auth.split("Barrer ")[1].strip()
+
         try:
             token = jwt.decode(token, app.config["SECRET_KEY"])
         except:
             raise Unauthorized()
-        return str(token)
+
+        try:
+            user = User.query.filter_by(
+                        id=token["sub"],
+                        session=token["ses"],
+                    ).one()
+        except:
+            raise Unauthorized()
+
+        g.user = user
+
+@app.before_request
+def get_permissions():
+    pass
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    user = g.get("user")
+
+    if user:
+        user.new_session()
+        db.session.add(user)
+        db.session.commit()
+    return ""
+
 
 @app.route("/register", methods=["POST"])
 def register():
-    data = request.get_json()
+    data = request.get_json(force=True)
 
 @app.route("/login", methods=["POST"])
-def index():
-    credentials = request.get_json()
+def login():
+    credentials = request.get_json(force=True)
     email = credentials.get("email")
     password = credentials.get("password")
     if email is not None:
@@ -57,11 +84,7 @@ def index():
             raise Unauthorized()
 
     if user.verify(password):
-        token = {"sub":user.id,}
-        token = jwt.encode(token, app.config["SECRET_KEY"], algorithm='HS256')
-        token = token.decode('utf-8')
-
-        return jsonify(access_token=token)
+        return jsonify(access_token=user.jwt)
 
     raise Unauthorized()
 
