@@ -39,19 +39,17 @@ def get_user():
         token = auth.split("Barrer ")[1].strip()
 
         try:
-            token = jwt.decode(token, app.config["SECRET_KEY"])
+            payload = jwt.decode(token, app.config["SECRET_KEY"])
         except:
             raise Unauthorized()
 
         try:
-            user = User.query.filter_by(
-                        id=token["sub"],
-                        session=token["ses"],
-                    ).one()
+            user = User.from_token(payload)
         except:
             raise Unauthorized()
 
         g.user = user
+
 
 @app.before_request
 def get_permissions():
@@ -67,6 +65,11 @@ def logout():
         db.session.commit()
     return ""
 
+@app.route("/dummy")
+def dummy():
+    print(g.user)
+    return "OK"
+
 
 @app.route("/register", methods=["POST"])
 def register():
@@ -76,14 +79,16 @@ def register():
 def login():
     credentials = request.get_json(force=True)
     email = credentials.get("email")
-    password = credentials.get("password")
+    password = credentials.get("password", "")
+    user = None
+
     if email is not None:
         try:
             user = User.query.filter_by(email=email).one()
         except Exception as e:
             raise Unauthorized()
 
-    if user.verify(password):
+    if user is not None and  user.verify(password):
         return jsonify(access_token=user.jwt)
 
     raise Unauthorized()
