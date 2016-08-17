@@ -35,16 +35,21 @@ for exception in exceptions:
 @app.before_request
 def get_user():
     auth = request.headers.get("Authorization")
+    app.logger.debug(auth)
+
     if auth and auth.startswith("Barrer "):
         token = auth.split("Barrer ")[1].strip()
+        app.logger.debug(token)
 
         try:
             payload = jwt.decode(token, app.config["SECRET_KEY"])
+            app.logger.debug(payload)
         except:
             raise Unauthorized()
 
         try:
             user = User.from_token(payload)
+            app.logger.debug(user)
         except:
             raise Unauthorized()
 
@@ -67,7 +72,6 @@ def logout():
 
 @app.route("/dummy")
 def dummy():
-    print(g.user)
     return "OK"
 
 

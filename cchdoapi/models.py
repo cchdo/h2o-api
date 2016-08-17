@@ -11,6 +11,23 @@ import jwt
 from . import db
 from . import app
 
+def repr(instance, **kwargs):
+    repr_string = "<{classname} ".format(
+            classname=instance.__class__.__name__
+            )
+
+    key_values = []
+    for key, value in kwargs.items():
+        key_values.append(
+            "{key}='{value}'".format(
+                key=key,
+                value=value
+                )
+            )
+    repr_string += ", ".join(key_values)
+    repr_string += ">"
+    return repr_string
+
 class User(db.Model):
     """User class
     """
@@ -24,6 +41,13 @@ class User(db.Model):
         self.email = email
         self.password = pwd_context.encrypt(password)
         self.new_session()
+
+    def __repr__(self):
+        return repr(self, 
+                email=self.email, 
+                active=self.active,
+                session=self.session
+                )
 
     def verify(self, password):
         return pwd_context.verify(password, self.password)
