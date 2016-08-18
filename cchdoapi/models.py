@@ -8,6 +8,9 @@ from random import getrandbits
 from passlib.apps import custom_app_context as pwd_context
 import jwt
 
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship
+
 from . import db
 from . import app
 
@@ -31,6 +34,8 @@ def repr(instance, **kwargs):
 class User(db.Model):
     """User class
     """
+    __tablename__ = "user"
+
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True)
     password = db.Column(db.String(255))
@@ -66,11 +71,11 @@ class User(db.Model):
         return token
 
     @classmethod
-    def from_token(cls, token_payload):
+    def from_token(cls, token):
         """Find and return a user object corresponding to the payload of a
         decoded JSON Web Token.
 
-        :param dict token_payload: Decoded JWT payload, at a minimum it must
+        :param dict token: Decoded JWT payload, at a minimum it must
                                     have the key ``sub`` containing the user
                                     id, and the key ``ses`` which has the user
                                     session.
@@ -85,17 +90,50 @@ class User(db.Model):
                                     intervention.
         """
         return cls.query.filter_by(
-                    id=token_payload["sub"],
-                    session=token_payload["ses"],
+                    id=token["sub"],
+                    session=token["ses"],
                 ).one()
 
 
-#class Permission(db.Model):
-#    pass
-#
-#class Type(db.Model):
-#    pass
-#
+class Permission(db.Model):
+    """Permission class
+    """
+    __tablename__ = "permission"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), unique=True, nullable=False)
+
+
+type_relations = db.Table(
+        "type_relations",
+        db.Column("left_id",
+            db.Integer, 
+            db.ForeignKey("type.id"),
+            nullable=False,
+            ),
+        db.Column("right_id", 
+            db.Integer, 
+            db.ForeignKey("type.id"), 
+            nullable=False,
+            ),
+        )
+
+class Type(db.Model):
+    """Type class
+    """
+    __tablename__ = "type"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), unique=True, nullable=False)
+    schema = db.Column(JSONB, nullable=False)
+    context = db.Column(JSONB)
+
+    relations = relationship("Type", secondary=type_relations,
+                primaryjoin=id==type_relations.c.left_id,
+                secondaryjoin=id==type_relations.c.right_id,
+            )
+
+
 #class TypePermission(db.Model):
 #    pass
 #

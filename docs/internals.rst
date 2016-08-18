@@ -2,4 +2,4 @@ CCHDO API Internals
 ===================
 
 .. automodule:: cchdoapi.models
-  :members: User
+  :members: User, Permission, Type
