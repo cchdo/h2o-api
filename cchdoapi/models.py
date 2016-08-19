@@ -9,7 +9,7 @@ from passlib.apps import custom_app_context as pwd_context
 import jwt
 
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref, object_session
 
 from . import db
 from . import app
@@ -128,10 +128,29 @@ class Type(db.Model):
     schema = db.Column(JSONB, nullable=False)
     context = db.Column(JSONB)
 
-    relations = relationship("Type", secondary=type_relations,
+    _relations = relationship("Type", 
+                secondary=type_relations,
                 primaryjoin=id==type_relations.c.left_id,
                 secondaryjoin=id==type_relations.c.right_id,
+                lazy="joined",
+                join_depth=1,
             )
+
+    @property
+    def relations(self):
+        return tuple(self._relations)
+
+    def link(self, other):
+        if self not in other._relations:
+            other._relations.append(self)
+        if other not in self._relations:
+            self._relations.append(other)
+
+    def unlink(self, other):
+        if self in other._relations:
+            other._relations.remove(self)
+        if other in self._relations:
+            self._relations.remove(other)
 
 
 #class TypePermission(db.Model):
