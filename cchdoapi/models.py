@@ -3,6 +3,7 @@ Database Models
 ------------------
 Some text here
 """
+from collections import defaultdict
 from random import getrandbits
 
 from passlib.apps import custom_app_context as pwd_context
@@ -10,6 +11,7 @@ import jwt
 
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, backref, object_session
+from sqlalchemy.ext.associationproxy import association_proxy
 
 from . import db
 from . import app
@@ -109,12 +111,12 @@ type_relations = db.Table(
         db.Column("left_id",
             db.Integer, 
             db.ForeignKey("type.id"),
-            nullable=False,
+            primary_key=True,
             ),
         db.Column("right_id", 
             db.Integer, 
             db.ForeignKey("type.id"), 
-            nullable=False,
+            primary_key=True,
             ),
         )
 
@@ -135,6 +137,11 @@ class Type(db.Model):
                 lazy="joined",
                 join_depth=1,
             )
+
+    def __repr__(self):
+        return repr(self,
+                name=self.name
+                )
 
     @property
     def relations(self):
@@ -159,10 +166,75 @@ class Type(db.Model):
 #class Attachment(db.Model):
 #    pass
 #
-#class Item(db.Model):
-#    
-#    pass
-#
+
+class ItemRelations(db.Model):
+    __tablename__ = "item_relations"
+
+    left_id = db.Column(
+            db.Integer, 
+            db.ForeignKey("item.id"),
+            primary_key=True,
+            )
+    right_id = db.Column(
+            db.Integer, 
+            db.ForeignKey("item.id"), 
+            primary_key=True,
+            )
+
+    role_name = db.Column(db.String)
+
+    self_item = relationship("Item", foreign_keys=[left_id])
+    item = relationship("Item", foreign_keys=[right_id])
+
+class Item(db.Model):
+    __tablename__ = "item"
+
+    id = db.Column(db.Integer, primary_key=True)
+    value = db.Column(JSONB, nullable=False, index=True)
+
+    links = relationship("ItemRelations", 
+            primaryjoin=id==ItemRelations.left_id,
+            lazy="joined",
+            )
+
+    linked_items = association_proxy("links", "item")
+
+
+
+    _type_id = db.Column(db.Integer, 
+            db.ForeignKey("type.id"), 
+            nullable=False,
+            )
+    _type = relationship("Type",
+            lazy="joined",
+            )
+
+    def to_dict(self, depth=1):
+        d = defaultdict(list)
+        d.update(self.value)
+        d["id"] = self.id
+
+        if depth > 0:
+            for link in self.links:
+                link_dict = link.item.to_dict(depth=depth-1)
+                if link.role_name:
+                    link_dict["role"] = link.role_name
+                d[link.item._type.name].append(link_dict)
+
+        return d
+
+    @property
+    def type_name(self):
+        return self._type.name
+
+    def __repr__(self):
+        return repr(self,
+                id=self.id,
+                type_name=self.type_name,
+                value=self.value,
+                )
+
+
 #class ItemHistory(db.Model):
 #    pass
 #
