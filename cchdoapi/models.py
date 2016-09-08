@@ -9,6 +9,7 @@ from random import getrandbits
 from passlib.apps import custom_app_context as pwd_context
 import jwt
 
+from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, backref, object_session
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -181,10 +182,24 @@ class ItemRelations(db.Model):
             primary_key=True,
             )
 
+    left_type_id = db.Column(db.Integer, nullable=False)
+    right_type_id = db.Column(db.Integer, nullable=False)
+    ForeignKeyConstraint(
+            [left_type_id, right_type_id],
+            ["type_relations.left_id", "type_relations.right_id"],
+            )
+
     role_name = db.Column(db.String)
 
     self_item = relationship("Item", foreign_keys=[left_id])
     item = relationship("Item", foreign_keys=[right_id])
+
+    def __init__(self, left, right, role=None):
+        self.self_item = left
+        self.item = right
+        self.role_name = role
+        self.left_type_id = left._type.id
+        self.right_type_id = right._type.id
 
 class Item(db.Model):
     __tablename__ = "item"
@@ -195,10 +210,10 @@ class Item(db.Model):
     links = relationship("ItemRelations", 
             primaryjoin=id==ItemRelations.left_id,
             lazy="joined",
+            cascade="delete-orphan",
             )
 
     linked_items = association_proxy("links", "item")
-
 
 
     _type_id = db.Column(db.Integer, 
@@ -234,6 +249,24 @@ class Item(db.Model):
                 value=self.value,
                 )
 
+    def unlink(self, other):
+        if other in self.linked_items:
+            self.linked_items.remove(other)
+        if self in other.linked_items:
+            other.linked_items.remove(self)
+
+    def link(self, other, role=None):
+        link = ItemRelations(self, other, role=role)
+        reverse_link = ItemRelations(other, self, role=role)
+
+        if other in self.linked_items:
+            self.unlink(other)
+        if other not in self.linked_items:
+            self.links.append(link)
+            object_session(self).add(link)
+        if self not in other.linked_items:
+            other.links.append(reverse_link)
+            object_session(other).add(reverse_link)
 
 #class ItemHistory(db.Model):
 #    pass
