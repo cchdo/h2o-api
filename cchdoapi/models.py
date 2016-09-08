@@ -202,6 +202,9 @@ class ItemRelations(db.Model):
         self.right_type_id = right._type.id
 
 class Item(db.Model):
+    """The :py:class:`.Item` class represents the actual data of some
+    :py:class:`.Type`.
+    """
     __tablename__ = "item"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -210,7 +213,7 @@ class Item(db.Model):
     links = relationship("ItemRelations", 
             primaryjoin=id==ItemRelations.left_id,
             lazy="joined",
-            cascade="delete-orphan",
+            cascade="all, delete-orphan",
             )
 
     linked_items = association_proxy("links", "item")
@@ -225,6 +228,8 @@ class Item(db.Model):
             )
 
     def to_dict(self, depth=1):
+        """Dump the value to a python dict.
+        """
         d = defaultdict(list)
         d.update(self.value)
         d["id"] = self.id
@@ -250,17 +255,27 @@ class Item(db.Model):
                 )
 
     def unlink(self, other):
+        """Unlink two :py:class:`.Item` instances.
+        """
         if other in self.linked_items:
             self.linked_items.remove(other)
         if self in other.linked_items:
             other.linked_items.remove(self)
 
     def link(self, other, role=None):
+        """Links two :py:class:`.Item` instances and optionally allows a role
+        name to be added to the link. Calling this method on two already linked
+        instances will update the role name of that relationship (including
+        setting it to None).
+        """
         link = ItemRelations(self, other, role=role)
         reverse_link = ItemRelations(other, self, role=role)
 
+        # Sqlalchemy is smart enough to turn a remove then add again into an
+        # SQL UPDATE rather than a DELETE and INSERT
         if other in self.linked_items:
             self.unlink(other)
+
         if other not in self.linked_items:
             self.links.append(link)
             object_session(self).add(link)
