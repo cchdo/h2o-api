@@ -7,11 +7,11 @@ It will be messy at first, even this readme is messy.
 ## URIs
 
 * User Manipulation:
-  * Non Authed Routes:
+  * Non Authed Routes (the only ones in the entire system):
     * `/user/login` (post) Return JWT
     * `/user/register` (post) Register a new user (email confirm?)
     * `/user/reset` (post) Send reset email
-  * Authed Routes (the only ones in the entire system):
+  * Authed Routes:
     * `/user/{id}/logout` (post) Change session ID, invalidates existing JWT
     * `/user/{id}/deactivate` (post) don't allow a user to login anymore
     * `/user/{id}/permissions` (get, post) view or add permissions
