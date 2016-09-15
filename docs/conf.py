@@ -31,7 +31,8 @@ sys.path.insert(0, os.path.abspath('../'))
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-        'sphinx.ext.autodoc'
+        'sphinx.ext.autodoc',
+        'sphinx.ext.todo',
         ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -114,7 +115,7 @@ pygments_style = 'sphinx'
 # keep_warnings = False
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
-todo_include_todos = False
+todo_include_todos = True
 
 
 # -- Options for HTML output ----------------------------------------------

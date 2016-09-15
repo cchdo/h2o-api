@@ -105,6 +105,10 @@ class Permission(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), unique=True, nullable=False)
+    default = db.Column(db.Boolean, nullable=False, default=False)
+
+#class APIKey(db.Model):
+#    pass
 
 
 type_relations = db.Table(
@@ -229,6 +233,14 @@ class Item(db.Model):
 
     def to_dict(self, depth=1):
         """Dump the value to a python dict.
+
+        .. todo::
+            Figure out how to handle the filtering of attached items, the
+            sqlalchemy docs suggest that is should be possible to push the
+            filtering down to the database level, in which case this method can
+            always return the entire object
+
+            http://docs.sqlalchemy.org/en/latest/orm/loading_relationships.html#using-contains-eager-to-load-a-custom-filtered-collection-result
         """
         d = defaultdict(list)
         d.update(self.value)
@@ -238,7 +250,7 @@ class Item(db.Model):
             for link in self.links:
                 link_dict = link.item.to_dict(depth=depth-1)
                 if link.role_name:
-                    link_dict["role"] = link.role_name
+                    link_dict["roleName"] = link.role_name
                 d[link.item._type.name].append(link_dict)
 
         return d
@@ -289,5 +301,3 @@ class Item(db.Model):
 #class Queue(db.Model):
 #    pass
 #
-#class APIKey(db.Model):
-#    pass
